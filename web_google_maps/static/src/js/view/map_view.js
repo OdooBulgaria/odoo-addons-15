@@ -159,22 +159,24 @@ odoo.define('web.MapView', function (require) {
             });
         },
         load_markers: function () {
-            var self = this,
-                latLng;
-
+            var self = this
+            var def = $.Deferred();
             this.infowindow = new google.maps.InfoWindow();
             return $.when(this.dataset.read_slice(this.fields_list()).done(function (records) {
                 self.clear_marker_clusterer();
                 if (!records.length) {
                     self.do_notify(_t('No geolocation is found!'));
-                    return false;
+                    def.reject();
+                    return def;
                 }
                 _.each(records, function (record) {
                     if (record[self.latitude] && record[self.longitude]) {
-                        latLng = new google.maps.LatLng(record[self.latitude], record[self.longitude]);
+                        var latLng = new google.maps.LatLng(record[self.latitude], record[self.longitude]);
                         self._create_marker(latLng, record);
                     };
                 });
+                def.resolve();
+                return def;
             }));
         },
         _get_icon_color: function (record) {
@@ -262,20 +264,24 @@ odoo.define('web.MapView', function (require) {
             }
         },
         _map_centered: function () {
-            google.maps.event.trigger(this.map, 'resize');
+            var self = this;
             if (this.markers.length == 1) {
-                var self = this;
-                google.maps.event.addListenerOnce(this.map, 'idle', function () {
-                    self.map.setCenter(self.markers[0].getPosition());
-                    self.map.setZoom(17);
-                });
+                this.map.setCenter(this.markers[0].getPosition());
             } else {
-                var bounds = new google.maps.LatLngBounds();
+                this.latlng_bounds = new google.maps.LatLngBounds();
                 _.each(this.markers, function (marker) {
-                    bounds.extend(marker.getPosition());
+                    self.latlng_bounds.extend(marker.getPosition());
                 });
-                this.map.fitBounds(bounds);
             }
+            google.maps.event.addListenerOnce(this.map, 'idle', function() {
+                google.maps.event.trigger(self.map, 'resize');
+                if (self.markers.length === 1) {
+                    self.map.panTo(self.markers[0].getPosition());
+                    self.map.setZoom(17);
+                } else {
+                    self.map.fitBounds(self.latlng_bounds);
+                }
+            });
         },
         do_show: function () {
             this.do_push_state({});
