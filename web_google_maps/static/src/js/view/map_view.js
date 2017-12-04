@@ -272,14 +272,17 @@ odoo.define('web.MapView', function (require) {
                 _.each(this.markers, function (marker) {
                     self.latlng_bounds.extend(marker.getPosition());
                 });
+                self.map.fitBounds(self.latlng_bounds);
             }
             google.maps.event.addListenerOnce(this.map, 'idle', function() {
                 google.maps.event.trigger(self.map, 'resize');
+            });
+            google.maps.event.addListenerOnce(this.map, 'center_changed', function() {
                 if (self.markers.length === 1) {
                     self.map.panTo(self.markers[0].getPosition());
                     self.map.setZoom(17);
                 } else {
-                    self.map.fitBounds(self.latlng_bounds);
+                    self.map.panToBounds(self.latlng_bounds);
                 }
             });
         },
